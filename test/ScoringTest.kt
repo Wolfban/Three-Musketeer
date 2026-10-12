@@ -42,4 +42,26 @@ class ScoringTest {
         assertEquals(2, s.scoringCards.size)
         assertEquals(60, s.total)   // (10 + 20) × 2
     }
+    @Test fun sevenCardsFindHiddenStraight() {
+        val h = hand(Rank.QUEEN to Suit.HEARTS, Rank.KING to Suit.SPADES, Rank.JACK to Suit.CLUBS,
+            Rank.THREE to Suit.DIAMONDS, Rank.QUEEN to Suit.CLUBS, Rank.ACE to Suit.DIAMONDS,
+            Rank.TEN to Suit.HEARTS)
+        val s = Scoring.score(h)
+        assertEquals(HandCategory.STRAIGHT, s.category)
+        assertEquals(324, s.total)
+    }
+    @Test fun royalFlushScoresAndBeatsStraightFlush() {
+        val royal = hand(Rank.ACE to Suit.SPADES, Rank.KING to Suit.SPADES, Rank.QUEEN to Suit.SPADES,
+            Rank.JACK to Suit.SPADES, Rank.TEN to Suit.SPADES)
+        val sf = hand(Rank.KING to Suit.HEARTS, Rank.QUEEN to Suit.HEARTS, Rank.JACK to Suit.HEARTS,
+            Rank.TEN to Suit.HEARTS, Rank.NINE to Suit.HEARTS)
+        assertEquals(2010, Scoring.score(royal).total)
+        assertEquals(1192, Scoring.score(sf).total)
+    }
+
+    @Test fun royalFlushFoundAmongSevenCards() {
+        val h = hand(Rank.ACE to Suit.SPADES, Rank.KING to Suit.SPADES, Rank.QUEEN to Suit.SPADES,
+            Rank.JACK to Suit.SPADES, Rank.TEN to Suit.SPADES, Rank.TWO to Suit.HEARTS, Rank.NINE to Suit.CLUBS)
+        assertEquals(HandCategory.ROYAL_FLUSH, Scoring.score(h).category)
+    }
 }

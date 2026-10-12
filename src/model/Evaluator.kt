@@ -3,7 +3,7 @@ package model
 
 enum class HandCategory {
     HIGH_CARD, ONE_PAIR, TWO_PAIR, THREE_OF_A_KIND, STRAIGHT,
-    FLUSH, FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH
+    FLUSH, FULL_HOUSE, FOUR_OF_A_KIND, STRAIGHT_FLUSH, ROYAL_FLUSH
 }
 
 data class HandResult(
@@ -38,6 +38,7 @@ object PokerEvaluator {
         val ordered = groups.map { it.key }
 
         return when {
+            isFlush && straightHigh == 14 -> HandResult(HandCategory.ROYAL_FLUSH, listOf(14))
             isFlush && straightHigh != null -> HandResult(HandCategory.STRAIGHT_FLUSH, listOf(straightHigh))
             counts == listOf(4, 1) -> HandResult(HandCategory.FOUR_OF_A_KIND, ordered)
             counts == listOf(3, 2) -> HandResult(HandCategory.FULL_HOUSE, ordered)
@@ -49,7 +50,10 @@ object PokerEvaluator {
             else -> HandResult(HandCategory.HIGH_CARD, values)
         }
     }
-
+    fun evaluateBest(cards: List<Card>): HandResult {
+        require(cards.size >= 5) { "Se necesitan al menos 5 cartas" }
+        return Combinations.of(cards, 5).map { evaluate(it) }.max()
+    }
     // Devuelve la carta más alta de la escalera, o null si no hay escalera
     private fun straightHigh(sortedDesc: List<Int>): Int? {
         if (sortedDesc.toSet().size != 5) return null

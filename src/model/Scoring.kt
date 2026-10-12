@@ -27,7 +27,8 @@ object Scoring {
         HandCategory.FLUSH to Rule(35, 4),
         HandCategory.FULL_HOUSE to Rule(40, 4),
         HandCategory.FOUR_OF_A_KIND to Rule(50, 5),
-        HandCategory.STRAIGHT_FLUSH to Rule(100, 8)
+        HandCategory.STRAIGHT_FLUSH to Rule(100, 8),
+        HandCategory.ROYAL_FLUSH to Rule (150, 10)
     )
 
     fun chipsOf(card: Card): Int = when (card.rank) {
@@ -37,6 +38,13 @@ object Scoring {
     }
 
     fun score(cards: List<Card>): ScoreBreakdown {
+        require(cards.size >= 5) { "Se necesitan al menos 5 cartas" }
+        return Combinations.of(cards, 5)
+            .map { scoreFive(it) }
+            .maxWith(compareBy<ScoreBreakdown> { it.total }.thenBy { it.category })
+    }
+
+    private fun scoreFive(cards: List<Card>): ScoreBreakdown {
         val category = PokerEvaluator.evaluate(cards).category
         val scoring = scoringCards(cards, category)
         val rule = rules.getValue(category)
@@ -57,7 +65,7 @@ object Scoring {
             HandCategory.ONE_PAIR, HandCategory.TWO_PAIR -> groups.filter { it.size == 2 }.flatten()
             HandCategory.THREE_OF_A_KIND -> groups.filter { it.size == 3 }.flatten()
             HandCategory.FOUR_OF_A_KIND -> groups.filter { it.size == 4 }.flatten()
-            else -> cards // escalera, flush, full house y escalera de color usan las 5
+            else -> cards
         }
     }
 }

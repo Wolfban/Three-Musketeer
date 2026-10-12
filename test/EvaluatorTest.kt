@@ -42,4 +42,21 @@ class PokerEvaluatorTest {
             Rank.SEVEN to Suit.HEARTS, Rank.THREE to Suit.DIAMONDS)
         assertFailsWith<IllegalArgumentException> { PokerEvaluator.evaluate(h) }
     }
+    @Test fun detectsRoyalFlush() {
+        val h = hand(Rank.ACE to Suit.SPADES, Rank.KING to Suit.SPADES, Rank.QUEEN to Suit.SPADES,
+            Rank.JACK to Suit.SPADES, Rank.TEN to Suit.SPADES)
+        assertEquals(HandCategory.ROYAL_FLUSH, PokerEvaluator.evaluate(h).category)
+    }
+
+    @Test fun kingHighStraightFlushIsNotRoyal() {
+        val h = hand(Rank.KING to Suit.HEARTS, Rank.QUEEN to Suit.HEARTS, Rank.JACK to Suit.HEARTS,
+            Rank.TEN to Suit.HEARTS, Rank.NINE to Suit.HEARTS)
+        assertEquals(HandCategory.STRAIGHT_FLUSH, PokerEvaluator.evaluate(h).category)
+    }
+
+    @Test fun wheelStraightFlushIsNotRoyal() {
+        val h = hand(Rank.ACE to Suit.CLUBS, Rank.TWO to Suit.CLUBS, Rank.THREE to Suit.CLUBS,
+            Rank.FOUR to Suit.CLUBS, Rank.FIVE to Suit.CLUBS)
+        assertEquals(HandCategory.STRAIGHT_FLUSH, PokerEvaluator.evaluate(h).category)
+    }
 }

@@ -10,6 +10,7 @@ private fun categoryName(c: HandCategory) = when (c) {
     HandCategory.FULL_HOUSE -> "Full house"
     HandCategory.FOUR_OF_A_KIND -> "Poker (four of a kind)"
     HandCategory.STRAIGHT_FLUSH -> "Escalera de color"
+    HandCategory.ROYAL_FLUSH -> "Escalera real (royal flush)"
 }
 
 private fun cardText(card: Card): String {
@@ -104,7 +105,7 @@ private fun playDuel(duel: Duel): Boolean {
         println("         ${describe(score)}   [objetivo: ${duel.targetScore}]")
         println("Descartes restantes: ${duel.roundsLeft}")
         if (duel.roundsLeft > 0) {
-            print("Cartas a descartar (1 a 3 números, ej. 1 3 5), 'd' = duelo, 'q' = salir: ")
+            print("Cartas a descartar (1 a ${Duel.MAX_DISCARD_PER_ROUND} números, ej. 1 3 5), 'd' = duelo, 'q' = salir: ")
         } else {
             print("Sin descartes. 'd' = duelo, 'q' = salir: ")
         }

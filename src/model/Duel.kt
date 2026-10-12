@@ -8,8 +8,8 @@ class Duel(
 ) {
 
     companion object {
-        const val HAND_SIZE = 5
-        const val MAX_DISCARD_PER_ROUND = 3
+        const val HAND_SIZE = 7
+        const val MAX_DISCARD_PER_ROUND = 5
         const val MAX_ROUNDS = 3
     }
 
@@ -38,11 +38,9 @@ class Duel(
         while (true) {
             deck.reset()
             val hand = deck.draw(HAND_SIZE)
-            if (PokerEvaluator.evaluate(hand).category >= enemyMinCategory) return hand
+            if (PokerEvaluator.evaluateBest(hand).category >= enemyMinCategory) return hand
         }
     }
-
-    /** Marca o desmarca una carta. Devuelve false si no se pudo (duelo cerrado o ya hay 3 marcadas). */
     fun toggleSelect(index: Int): Boolean {
         require(index in playerHand.indices) { "Índice de carta inválido" }
         if (isFinished) return false
@@ -83,8 +81,8 @@ class Duel(
         }
 
 
-    fun playerResult() = PokerEvaluator.evaluate(playerHand)
-    fun enemyResult() = PokerEvaluator.evaluate(enemyHand)
+    fun playerResult() = PokerEvaluator.evaluateBest(playerHand)
+    fun enemyResult() = PokerEvaluator.evaluateBest(enemyHand)
     val enemyScore: ScoreBreakdown = Scoring.score(enemyHand)
     fun playerScore(): ScoreBreakdown = Scoring.score(playerHand)
     val targetScore: Int get() = enemyScore.total
