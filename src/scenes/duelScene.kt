@@ -30,16 +30,16 @@ class DuelScene : Scene() {
         val enemyLayer = container()
         val playerLayer = container()
         val sideLayer = container()
-        val overlayLayer = container()   // se crea al final: queda por encima de todo
+        val overlayLayer = container()
 
-        // Borra y vuelve a dibujar todo según el estado actual
+
         fun redraw() {
             enemyLayer.removeChildren()
             playerLayer.removeChildren()
             sideLayer.removeChildren()
             overlayLayer.removeChildren()
 
-            // ---------- RIVAL (arriba a la izquierda) ----------
+
             val enemy = duel.enemyScore
             enemyLayer.text("RIVAL") { position(LEFT, 20); scale(1.3) }
             duel.enemyHand.forEachIndexed { i, card ->
@@ -47,7 +47,7 @@ class DuelScene : Scene() {
             }
             enemyLayer.text(scoreText(enemy)) { position(LEFT, 168) }
 
-            // ---------- JUGADOR (abajo a la izquierda) ----------
+
             val player = duel.playerScore()
             val beating = player.total > duel.targetScore
             playerLayer.text("TU MANO") { position(LEFT, 250); scale(1.3) }
@@ -69,11 +69,11 @@ class DuelScene : Scene() {
                 "Descartes: ${duel.roundsLeft}   Marcadas: ${duel.selected.size}/${Duel.MAX_DISCARD_PER_ROUND}"
             ) { position(LEFT, 432) }
 
-            // ---------- COLUMNA DERECHA ----------
+
             sideLayer.text("Objetivo: ${duel.targetScore}") { position(RIGHT_COL, 45); scale(2.0) }
             sideLayer.text("Verde: suman puntos\nAmarillo: marcada") { position(RIGHT_COL, 105); scale(0.9) }
 
-            // Resumen del resultado (visible cuando se cierra el cuadro con "Ver manos")
+
             val r = result
             if (r != null) {
                 sideLayer.text(r.title) { position(RIGHT_COL, 150); scale(1.6) }
@@ -97,7 +97,7 @@ class DuelScene : Scene() {
                 redraw()
             }
 
-            // ---------- CUADRO DE RESULTADO (encima de todo) ----------
+
             if (r != null && showOverlay) {
                 val dim = overlayLayer.solidRect(960, 540, RGBA(0, 0, 0, 170))
                 dim.onClick { }   // captura los toques para que no lleguen a lo que está debajo
@@ -109,7 +109,7 @@ class DuelScene : Scene() {
                 }
                 overlayLayer.solidRect(480, 290, panelColor).position(240, 130)
 
-                // Centrado aproximado: ~26 px por letra a escala 3.0, ~13 px a 1.5 y ~10 px a 1.2
+
                 overlayLayer.text(r.title) { position((960 - r.title.length * 26) / 2, 150); scale(3.0) }
                 overlayLayer.text(r.scores) { position((960 - r.scores.length * 13) / 2, 228); scale(1.5) }
                 if (r.note.isNotEmpty()) {
@@ -134,7 +134,6 @@ class DuelScene : Scene() {
     }
 }
 
-// ---------- componentes sencillos ----------
 
 private fun Container.cardView(
     card: Card, x: Int, y: Int, scoring: Boolean, selected: Boolean, onTap: (() -> Unit)? = null
