@@ -19,7 +19,7 @@ private const val CARD_W = 63
 private const val CARD_H = 90
 private const val CARD_STEP = 69
 
-private const val ART_SCALE = 3.0
+internal const val ART_SCALE = 3.0
 
 private const val SIDE_X = 27
 
@@ -57,6 +57,10 @@ private val DEATH_MOTTOS = listOf(
 
 private lateinit var pixelFont: TtfFont
 
+internal suspend fun loadPixelFont() {
+    if (!::pixelFont.isInitialized) pixelFont = resourcesVfs["PixelifySans.ttf"].readTtfFont()
+}
+
 
 private class FightResult(
     val outcome: DuelOutcome,
@@ -76,7 +80,7 @@ class DuelScene : Scene() {
 
         println("DEBUG: Entrando a DuelScene")
 
-        pixelFont = resourcesVfs["PixelifySans.ttf"].readTtfFont()
+        loadPixelFont()
 
 
         val cardImages = mutableMapOf<Card, Bitmap>()
@@ -424,7 +428,7 @@ private fun pixelFontOf(size: Int): BitmapFont = pixelFonts.getOrPut(size) {
     }
 }
 
-private fun Container.pixelText(
+internal fun Container.pixelText(
     label: String, size: Int = 16, color: RGBA = Colors.WHITE, block: Text.() -> Unit = {}
 ): Text = text(label, size, color, pixelFontOf(size)) {
     smoothing = false
