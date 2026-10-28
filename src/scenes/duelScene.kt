@@ -74,7 +74,35 @@ class DuelScene : Scene() {
         var result: FightResult? = null
         var showOverlay = false
 
+        println("DEBUG: Entrando a DuelScene")
+
         pixelFont = resourcesVfs["PixelifySans.ttf"].readTtfFont()
+
+
+        val cardImages = mutableMapOf<Card, Bitmap>()
+
+        for (suit in Suit.entries) {
+            for (rank in Rank.entries) {
+
+                val card = Card(rank, suit)
+                val path = card.imagePath()
+
+                val bitmap = try {
+                    resourcesVfs[path].readBitmap()
+                } catch (e: Exception) {
+                    null
+                }
+
+                if (bitmap != null) {
+                    cardImages[card] = bitmap
+                }
+            }
+        }
+
+        println("Cartas cargadas: ${cardImages.size}/52")
+
+
+        println("Cartas PNG cargadas: ${cardImages.size}")
 
         val sceneArt = resourcesVfs["escena_mosquetero.ase"]
             .readImageData(ASE.toProps().also { it.onlyReadVisibleLayers = false })
@@ -115,8 +143,15 @@ class DuelScene : Scene() {
             val enemy = duel.enemyScore
             duel.enemyHand.forEachIndexed { i, card ->
                 enemyLayer.cardView(
-                    card, ENEMY_X + i * ENEMY_STEP, ENEMY_Y, card in enemy.scoringCards, false,
-                    w = ENEMY_CARD_W, h = ENEMY_CARD_H, textSize = 22
+                    card,
+                    ENEMY_X + i * ENEMY_STEP,
+                    ENEMY_Y,
+                    card in enemy.scoringCards,
+                    false,
+                    cardImages,
+                    w = ENEMY_CARD_W,
+                    h = ENEMY_CARD_H,
+                    textSize = 22
                 )
             }
             enemyLayer.plate("Rival - ${scoreText(enemy)}", ENEMY_X, ENEMY_Y + ENEMY_CARD_H + 8)
@@ -126,13 +161,19 @@ class DuelScene : Scene() {
             val beating = player.total > duel.targetScore
             duel.playerHand.forEachIndexed { i, card ->
                 val selected = i in duel.selected
+
                 playerLayer.cardView(
-                    card, CARDS_X + i * CARD_STEP, if (selected) PLAYER_Y - 20 else PLAYER_Y,
-                    card in player.scoringCards, selected
+                    card,
+                    CARDS_X + i * CARD_STEP,
+                    if (selected) PLAYER_Y - 20 else PLAYER_Y,
+                    card in player.scoringCards,
+                    selected,
+                    cardImages
                 ) {
                     duel.toggleSelect(i)
                     redraw()
                 }
+
             }
             playerLayer.plate(
                 "Tú - ${scoreText(player)}", CARDS_X, PLAYER_Y + CARD_H + 8,
@@ -252,22 +293,85 @@ class DuelScene : Scene() {
 }
 
 
+
 private fun Container.cardView(
-    card: Card, x: Int, y: Int, scoring: Boolean, selected: Boolean,
-    w: Int = CARD_W, h: Int = CARD_H, textSize: Int = 33, onTap: (() -> Unit)? = null
+    card: Card,
+    x: Int,
+    y: Int,
+    scoring: Boolean,
+    selected: Boolean,
+    cardImages: Map<Card, Bitmap>,
+    w: Int = CARD_W,
+    h: Int = CARD_H,
+    textSize: Int = 33,
+    onTap: (() -> Unit)? = null
 ): Container = container {
+
     position(x, y)
+
+    // Color de fondo según el estado de la carta
     val bg = when {
         selected -> Colors["#ffe082"]
         scoring -> Colors["#c8e6c9"]
         else -> Colors.WHITE
     }
-    solidRect(w + 4, h + 4, Colors["#2b1608"]).position(-2, -2)
+
+    // Borde exterior de la carta
+    solidRect(w + 4, h + 4, Colors["#2b1608"])
+        .position(-2, -2)
+
     solidRect(w, h, bg)
-    val ink = if (card.suit == Suit.HEARTS || card.suit == Suit.DIAMONDS) Colors["#c62828"] else Colors.BLACK
-    pixelText(cardText(card), textSize, color = ink) { position((w - width.toInt()) / 2, (h - height.toInt()) / 2) }
-    if (onTap != null) onClick { onTap() }
+
+    // Buscar el PNG correspondiente
+    val bitmap = cardImages[card]
+
+    if (bitmap != null) {
+
+        // Mostrar la imagen PNG
+        image(bitmap) {
+            smoothing = false
+
+            scaleX = w.toDouble() / bitmap.width
+            scaleY = h.toDouble() / bitmap.height
+        }
+
+    } else {
+
+        // Si todavía no existe PNG, mostrar texto
+        val ink = if (
+            card.suit == Suit.HEARTS ||
+            card.suit == Suit.DIAMONDS
+        ) Colors["#c62828"] else Colors.BLACK
+
+        pixelText(cardText(card), textSize, color = ink) {
+            position(
+                (w - width.toInt()) / 2,
+                (h - height.toInt()) / 2
+            )
+        }
+    }
+
+    // Indicador visual de selección o puntuación
+    if (selected || scoring) {
+        val borderColor = if (selected) {
+            Colors["#ffe082"]
+        } else {
+            Colors["#81c784"]
+        }
+
+        // Bordes indicadores
+        solidRect(w, 3, borderColor)
+        solidRect(w, 3, borderColor).position(0, h - 3)
+        solidRect(3, h, borderColor)
+        solidRect(3, h, borderColor).position(w - 3, 0)
+    }
+
+    // Mantener la interacción
+    if (onTap != null) {
+        onClick { onTap() }
+    }
 }
+
 
 private fun Container.artButton(
     label: String, art: Bitmap, x: Int, y: Int, enabled: Boolean,
