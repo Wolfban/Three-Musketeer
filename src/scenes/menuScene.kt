@@ -12,8 +12,6 @@ import korlibs.korge.view.animation.*
 import kotlinx.coroutines.launch
 import kotlin.time.Duration.Companion.seconds
 
-private const val MENU_ROW_Y = 75
-private const val MENU_ROW_STEP = 21
 private const val MENU_LABEL_SIZE = 33
 private const val MENU_BUTTON_CENTER_Y = 8
 private const val MENU_HOVER_SCALE = 1.1
@@ -26,13 +24,19 @@ class MenuScene : Scene() {
         loadPixelFont()
 
         val menuArt = resourcesVfs["escena_menu.ase"].readImageData(ASE.toProps())
-        val background = imageDataView(menuArt, playing = true, smoothing = false) { scale(ART_SCALE) }
+        val art = container {
+            position(
+                (views.virtualWidth - menuArt.width * ART_SCALE) / 2,
+                (views.virtualHeight - menuArt.height * ART_SCALE) / 2
+            )
+        }
+        val background = art.imageDataView(menuArt, playing = true, smoothing = false) { scale(ART_SCALE) }
         background.getLayer("BtnSeleccionado")?.visible = false
         background.getLayer("Btn")?.visible = false
 
         val selectedArt = menuArt.frames.first().layerData.first { it.layer.name == "BtnSeleccionado" }
         val normalArt = menuArt.frames.first().layerData.first { it.layer.name == "Btn" }
-        val normalOffsetY = normalArt.targetY - (MENU_ROW_Y + MENU_ROW_STEP)
+        val rowStep = normalArt.targetY - selectedArt.targetY
 
         var selected = 0
         var leaving = false
@@ -41,7 +45,11 @@ class MenuScene : Scene() {
             if (leaving) return
             leaving = true
             views.launch {
-                val black = views.stage.solidRect(960, 540, Colors.BLACK) { alpha = 0.0 }
+                val screen = views.actualVirtualBounds
+                val black = views.stage.solidRect(screen.width, screen.height, Colors.BLACK) {
+                    position(screen.x, screen.y)
+                    alpha = 0.0
+                }
                 black.onClick { }
                 black.tween(black::alpha[1.0], time = 1.0.seconds)
                 sceneContainer.changeTo { DuelScene() }
@@ -74,14 +82,13 @@ class MenuScene : Scene() {
         }
 
         rows = options.mapIndexed { i, (label, action) ->
-            val rowY = MENU_ROW_Y + i * MENU_ROW_STEP
             val x = selectedArt.targetX * ART_SCALE
-            val y = rowY * ART_SCALE
-            val box = container()
+            val y = (selectedArt.targetY + i * rowStep) * ART_SCALE
+            val box = art.container()
             val normal = box.image(normalArt.slice) {
                 smoothing = false
                 scale(ART_SCALE)
-                position((normalArt.targetX - selectedArt.targetX) * ART_SCALE, normalOffsetY * ART_SCALE)
+                position((normalArt.targetX - selectedArt.targetX) * ART_SCALE, 0.0)
             }
             val highlighted = box.image(selectedArt.slice) {
                 smoothing = false

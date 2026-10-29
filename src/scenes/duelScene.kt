@@ -225,7 +225,8 @@ class DuelScene : Scene() {
 
 
             if (r != null && showOverlay) {
-                val dim = overlayLayer.solidRect(960, 540, RGBA(0, 0, 0, 170))
+                val screen = views.actualVirtualBounds
+                val dim = overlayLayer.solidRect(screen.width, screen.height, RGBA(0, 0, 0, 170)).position(screen.x, screen.y)
                 dim.onClick { }   // captura los toques para que no lleguen a lo que está debajo
 
                 val playAgain = {
@@ -241,7 +242,13 @@ class DuelScene : Scene() {
                 }
 
                 if (r.outcome == DuelOutcome.LOSE) {
-                    overlayLayer.imageDataView(deathArt, playing = true, smoothing = false) { scale(ART_SCALE) }
+                    overlayLayer.imageDataView(deathArt, playing = true, smoothing = false) {
+                        scale(ART_SCALE)
+                        position(
+                            (views.virtualWidth - deathArt.width * ART_SCALE) / 2,
+                            (views.virtualHeight - deathArt.height * ART_SCALE) / 2
+                        )
+                    }
                     overlayLayer.pixelText(r.title, 44) { position(501, 40) }
                     overlayLayer.plate(r.scores, 507, 104, size = 22)
                     if (r.note.isNotEmpty()) overlayLayer.plate(r.note, 507, 237)
@@ -276,7 +283,11 @@ class DuelScene : Scene() {
         }
 
         fadeToDeath = {
-            val black = fadeLayer.solidRect(960, 540, Colors.BLACK) { alpha = 0.0 }
+            val screen = views.actualVirtualBounds
+            val black = fadeLayer.solidRect(screen.width, screen.height, Colors.BLACK) {
+                position(screen.x, screen.y)
+                alpha = 0.0
+            }
             black.onClick { }
             val motto = fadeLayer.pixelText(DEATH_MOTTOS.random(), 33) {
                 position((960 - width.toInt()) / 2, (540 - height.toInt()) / 2)
