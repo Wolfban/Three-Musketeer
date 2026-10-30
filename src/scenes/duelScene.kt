@@ -73,7 +73,7 @@ private class FightResult(
 
 class DuelScene : Scene() {
 
-    override suspend fun SContainer.sceneMain() {
+    override suspend fun SContainer.sceneInit() {
         var duel = Duel()
         var result: FightResult? = null
         var showOverlay = false

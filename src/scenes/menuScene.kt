@@ -10,17 +10,23 @@ import korlibs.korge.tween.*
 import korlibs.korge.view.*
 import korlibs.korge.view.animation.*
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.time.Duration.Companion.seconds
 
 private const val MENU_LABEL_SIZE = 33
 private const val MENU_BUTTON_CENTER_Y = 8
 private const val MENU_HOVER_SCALE = 1.1
 
+private const val LOADING_CARD = "carta_reverso.png"
+private const val LOADING_CARD_SCALE = 1.0
+private const val LOADING_SPEED = 4.0
+
 private class MenuRow(val box: View, val normal: View, val highlighted: View, val x: Double, val y: Double)
 
 class MenuScene : Scene() {
 
-    override suspend fun SContainer.sceneMain() {
+    override suspend fun SContainer.sceneInit() {
         loadPixelFont()
 
         val menuArt = resourcesVfs["escena_menu.ase"].readImageData(ASE.toProps())
@@ -41,6 +47,8 @@ class MenuScene : Scene() {
         var selected = 0
         var leaving = false
 
+        val loadingCard = resourcesVfs[LOADING_CARD].readBitmap()
+
         fun play() {
             if (leaving) return
             leaving = true
@@ -52,7 +60,20 @@ class MenuScene : Scene() {
                 }
                 black.onClick { }
                 black.tween(black::alpha[1.0], time = 1.0.seconds)
+                val loader = views.stage.container { position(views.virtualWidth / 2.0, views.virtualHeight / 2.0 - 20) }
+                val card = loader.image(loadingCard) {
+                    anchor(0.5, 0.5)
+                    smoothing = false
+                    scaleY = LOADING_CARD_SCALE
+                }
+                loader.pixelText("Cargando", 22) { position(-width / 2, 74.0) }
+                var elapsed = 0.0
+                card.addUpdater { dt ->
+                    elapsed += dt.inWholeMilliseconds / 1000.0
+                    scaleX = abs(cos(elapsed * LOADING_SPEED)) * LOADING_CARD_SCALE
+                }
                 sceneContainer.changeTo { DuelScene() }
+                loader.removeFromParent()
                 black.tween(black::alpha[0.0], time = 1.0.seconds)
                 black.removeFromParent()
             }
