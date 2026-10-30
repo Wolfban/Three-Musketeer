@@ -110,7 +110,26 @@ class DuelScene : Scene() {
 
         val sceneArt = resourcesVfs["escena_mosquetero.ase"]
             .readImageData(ASE.toProps().also { it.onlyReadVisibleLayers = false })
+        val tavern = resourcesVfs["escena_taberna.ase"].readImageData(ASE.toProps()).frames.first().layerData.first().bitmap
+        val stageLayer = sceneArt.frames.first().layerData.first { it.layer.name == "Ecenario 1" }
+        val tableLayer = sceneArt.frames.first().layerData.first { it.layer.name == "Mesa 1" }
+        val tavernX = stageLayer.targetX - (tavern.width - stageLayer.width) / 2
+        val tavernY = stageLayer.targetY - (tavern.height - stageLayer.height) / 2
+        val tableTop = tableLayer.targetY - tavernY
+
+        solidRect(4960, 4540, Colors.BLACK).position(-2000, -2000)
+        image(tavern) {
+            smoothing = false
+            scale(ART_SCALE)
+            position(tavernX * ART_SCALE, tavernY * ART_SCALE)
+        }
         val background = imageDataView(sceneArt, playing = true, smoothing = false) { scale(ART_SCALE) }
+        listOf("Background", "Ecenario 1", "Mesa 1", "Barra Lateral").forEach { background.getLayer(it)?.visible = false }
+        image(tavern.sliceWithSize(0, tableTop, tavern.width, tavern.height - tableTop)) {
+            smoothing = false
+            scale(ART_SCALE)
+            position(tavernX * ART_SCALE, (tavernY + tableTop) * ART_SCALE)
+        }
 
         fun pickRival() {
             val rival = RIVALS.random()
@@ -125,6 +144,7 @@ class DuelScene : Scene() {
         }
 
         val panelArt = sceneArt.frames.first().layerData.first { it.layer.name == "Barra Lateral" }.bitmap
+        val sidebar = container()
 
         val deathArt =resourcesVfs["escena_muerte.ase"].readImageData(ASE.toProps())
 
@@ -133,6 +153,20 @@ class DuelScene : Scene() {
         val sideLayer = container()
         val overlayLayer = container()
         val fadeLayer = container()
+
+        var sidebarHeight = -1
+        addUpdater {
+            val screen = views.actualVirtualBounds
+            val artHeight = kotlin.math.ceil(screen.height / ART_SCALE).toInt()
+            if (artHeight != sidebarHeight) {
+                sidebarHeight = artHeight
+                sidebar.removeChildren()
+                if (artHeight > panelArt.height) sidebar.framePanel(panelArt, panelArt.width, artHeight)
+                else sidebar.image(panelArt) { smoothing = false; scale(ART_SCALE) }
+            }
+            sidebar.position(screen.left, if (artHeight > panelArt.height) screen.top else 0.0)
+            sideLayer.x = screen.left
+        }
 
         lateinit var fadeToDeath: suspend () -> Unit
 
