@@ -1,5 +1,6 @@
 package scenes
 
+import korlibs.event.*
 import korlibs.image.bitmap.*
 import korlibs.image.color.*
 import korlibs.image.font.*
@@ -19,7 +20,7 @@ private const val CARD_W = 63
 private const val CARD_H = 90
 private const val CARD_STEP = 69
 
-private const val ART_SCALE = 3.0
+internal const val ART_SCALE = 3.0
 
 private const val SIDE_X = 27
 
@@ -32,7 +33,10 @@ private const val SIDE_BUTTON_X = BUTTON_ART_X * 3
 private const val DEATH_BUTTON_ART_W = 66
 private const val PANEL_CAP = 13
 private const val RESULT_PANEL_ART_W = 160
-private const val RESULT_PANEL_ART_H = 116
+private const val RESULT_PANEL_ART_H = 140
+private const val MENU_BUTTON_ART_W = 136
+private const val CONFIRM_PANEL_ART_W = 160
+private const val CONFIRM_PANEL_ART_H = 80
 
 private const val TABLE_X = 59 * 3
 private const val TABLE_W = 261 * 3
@@ -57,6 +61,10 @@ private val DEATH_MOTTOS = listOf(
 
 private lateinit var pixelFont: TtfFont
 
+internal suspend fun loadPixelFont() {
+    if (!::pixelFont.isInitialized) pixelFont = resourcesVfs["PixelifySans.ttf"].readTtfFont()
+}
+
 
 private class FightResult(
     val outcome: DuelOutcome,
@@ -69,14 +77,14 @@ private class FightResult(
 
 class DuelScene : Scene() {
 
-    override suspend fun SContainer.sceneMain() {
+    override suspend fun SContainer.sceneInit() {
         var duel = Duel()
         var result: FightResult? = null
         var showOverlay = false
 
         println("DEBUG: Entrando a DuelScene")
 
-        pixelFont = resourcesVfs["PixelifySans.ttf"].readTtfFont()
+        loadPixelFont()
 
 
         val cardImages = mutableMapOf<Card, Bitmap>()
@@ -106,7 +114,26 @@ class DuelScene : Scene() {
 
         val sceneArt = resourcesVfs["escena_mosquetero.ase"]
             .readImageData(ASE.toProps().also { it.onlyReadVisibleLayers = false })
+        val tavernArt = resourcesVfs["escena_taberna.ase"].readImageData(ASE.toProps())
+        val tavern = tavernArt.frames.first().layerData.first().bitmap
+        val stageLayer = sceneArt.frames.first().layerData.first { it.layer.name == "Ecenario 1" }
+        val tableLayer = sceneArt.frames.first().layerData.first { it.layer.name == "Mesa 1" }
+        val tavernX = stageLayer.targetX - (tavern.width - stageLayer.width) / 2
+        val tavernY = stageLayer.targetY - (tavern.height - stageLayer.height) / 2
+        val tableTop = tableLayer.targetY - tavernY
+
+        solidRect(4960, 4540, Colors.BLACK).position(-2000, -2000)
+        imageDataView(tavernArt, playing = true, smoothing = false) {
+            scale(ART_SCALE)
+            position(tavernX * ART_SCALE, tavernY * ART_SCALE)
+        }
         val background = imageDataView(sceneArt, playing = true, smoothing = false) { scale(ART_SCALE) }
+        listOf("Background", "Ecenario 1", "Mesa 1", "Barra Lateral").forEach { background.getLayer(it)?.visible = false }
+        image(tavern.sliceWithSize(0, tableTop, tavern.width, tavern.height - tableTop)) {
+            smoothing = false
+            scale(ART_SCALE)
+            position(tavernX * ART_SCALE, (tavernY + tableTop) * ART_SCALE)
+        }
 
         fun pickRival() {
             val rival = RIVALS.random()
@@ -121,6 +148,7 @@ class DuelScene : Scene() {
         }
 
         val panelArt = sceneArt.frames.first().layerData.first { it.layer.name == "Barra Lateral" }.bitmap
+        val sidebar = container()
 
         val deathArt =resourcesVfs["escena_muerte.ase"].readImageData(ASE.toProps())
 
@@ -128,9 +156,74 @@ class DuelScene : Scene() {
         val playerLayer = container()
         val sideLayer = container()
         val overlayLayer = container()
+        val confirmLayer = container()
         val fadeLayer = container()
 
+        var sidebarHeight = -1
+        addUpdater {
+            val screen = views.actualVirtualBounds
+            val artHeight = kotlin.math.ceil(screen.height / ART_SCALE).toInt()
+            if (artHeight != sidebarHeight) {
+                sidebarHeight = artHeight
+                sidebar.removeChildren()
+                if (artHeight > panelArt.height) sidebar.framePanel(panelArt, panelArt.width, artHeight)
+                else sidebar.image(panelArt) { smoothing = false; scale(ART_SCALE) }
+            }
+            sidebar.position(screen.left, if (artHeight > panelArt.height) screen.top else 0.0)
+            sideLayer.x = screen.left
+        }
+
         lateinit var fadeToDeath: suspend () -> Unit
+
+        var leaving = false
+        fun goToMenu() {
+            if (leaving) return
+            leaving = true
+            views.launch {
+                val screen = views.actualVirtualBounds
+                val black = views.stage.solidRect(screen.width, screen.height, Colors.BLACK) {
+                    position(screen.x, screen.y)
+                    alpha = 0.0
+                }
+                black.onClick { }
+                black.tween(black::alpha[1.0], time = 1.0.seconds)
+                sceneContainer.changeTo { MenuScene() }
+                black.tween(black::alpha[0.0], time = 1.0.seconds)
+                black.removeFromParent()
+            }
+        }
+
+        fun closeConfirm() = confirmLayer.removeChildren()
+
+        fun openConfirm() {
+            if (confirmLayer.numChildren > 0) return
+            val screen = views.actualVirtualBounds
+            confirmLayer.solidRect(screen.width, screen.height, RGBA(0, 0, 0, 170)).position(screen.x, screen.y).onClick { }
+            confirmLayer.framePanel(panelArt, CONFIRM_PANEL_ART_W, CONFIRM_PANEL_ART_H).position(240, 150)
+            confirmLayer.pixelText("¿Salir al menú?", 33) { position((960 - width.toInt()) / 2, 180) }
+            confirmLayer.pixelText("Se perderá la partida actual.", 16) { position((960 - width.toInt()) / 2, 230) }
+            confirmLayer.artButton(
+                "Salir", buttonArt.getValue("Descartar"), 276, 282, true,
+                artWidth = DEATH_BUTTON_ART_W, labelSize = 22
+            ) {
+                closeConfirm()
+                goToMenu()
+            }
+            confirmLayer.artButton(
+                "Cancelar", buttonArt.getValue("Nueva Partida"), 486, 282, true,
+                artWidth = DEATH_BUTTON_ART_W, labelSize = 22, onTap = ::closeConfirm
+            )
+        }
+
+        keys {
+            down(Key.ESCAPE, Key.BACK) {
+                when {
+                    confirmLayer.numChildren > 0 -> closeConfirm()
+                    duel.isFinished -> goToMenu()
+                    else -> openConfirm()
+                }
+            }
+        }
 
 
         fun redraw() {
@@ -221,7 +314,8 @@ class DuelScene : Scene() {
 
 
             if (r != null && showOverlay) {
-                val dim = overlayLayer.solidRect(960, 540, RGBA(0, 0, 0, 170))
+                val screen = views.actualVirtualBounds
+                val dim = overlayLayer.solidRect(screen.width, screen.height, RGBA(0, 0, 0, 170)).position(screen.x, screen.y)
                 dim.onClick { }   // captura los toques para que no lleguen a lo que está debajo
 
                 val playAgain = {
@@ -237,10 +331,20 @@ class DuelScene : Scene() {
                 }
 
                 if (r.outcome == DuelOutcome.LOSE) {
-                    overlayLayer.imageDataView(deathArt, playing = true, smoothing = false) { scale(ART_SCALE) }
+                    overlayLayer.imageDataView(deathArt, playing = true, smoothing = false) {
+                        scale(ART_SCALE)
+                        position(
+                            (views.virtualWidth - deathArt.width * ART_SCALE) / 2,
+                            (views.virtualHeight - deathArt.height * ART_SCALE) / 2
+                        )
+                    }
                     overlayLayer.pixelText(r.title, 44) { position(501, 40) }
                     overlayLayer.plate(r.scores, 507, 104, size = 22)
-                    if (r.note.isNotEmpty()) overlayLayer.plate(r.note, 507, 237)
+                    if (r.note.isNotEmpty()) overlayLayer.plate(r.note, 507, 321)
+                    overlayLayer.artButton(
+                        "Menú", buttonArt.getValue("Descartar"), 711, 231, true,
+                        artWidth = DEATH_BUTTON_ART_W, labelSize = 22, onTap = ::goToMenu
+                    )
                     overlayLayer.artButton(
                         "Jugar de nuevo", buttonArt.getValue("Duelo"), 501, 147, true,
                         artWidth = DEATH_BUTTON_ART_W, labelSize = 22, onTap = playAgain
@@ -250,29 +354,37 @@ class DuelScene : Scene() {
                         artWidth = DEATH_BUTTON_ART_W, labelSize = 22, onTap = showHands
                     )
                 } else {
-                    overlayLayer.framePanel(panelArt, RESULT_PANEL_ART_W, RESULT_PANEL_ART_H).position(240, 108)
+                    overlayLayer.framePanel(panelArt, RESULT_PANEL_ART_W, RESULT_PANEL_ART_H).position(240, 60)
 
 
-                    overlayLayer.pixelText(r.title, 44) { position((960 - width.toInt()) / 2, 132) }
-                    overlayLayer.pixelText(r.scores, 22) { position((960 - width.toInt()) / 2, 198) }
+                    overlayLayer.pixelText(r.title, 44) { position((960 - width.toInt()) / 2, 84) }
+                    overlayLayer.pixelText(r.scores, 22) { position((960 - width.toInt()) / 2, 150) }
                     if (r.note.isNotEmpty()) {
-                        overlayLayer.pixelText(r.note, 22) { position((960 - width.toInt()) / 2, 234) }
+                        overlayLayer.pixelText(r.note, 22) { position((960 - width.toInt()) / 2, 186) }
                     }
 
                     overlayLayer.artButton(
-                        "Continuar", buttonArt.getValue("Duelo"), 276, 318, true,
+                        "Continuar", buttonArt.getValue("Duelo"), 276, 270, true,
                         artWidth = DEATH_BUTTON_ART_W, labelSize = 22, onTap = playAgain
                     )
                     overlayLayer.artButton(
-                        "Ver manos", buttonArt.getValue("Nueva Partida"), 486, 318, true,
+                        "Ver manos", buttonArt.getValue("Nueva Partida"), 486, 270, true,
                         artWidth = DEATH_BUTTON_ART_W, labelSize = 22, onTap = showHands
+                    )
+                    overlayLayer.artButton(
+                        "Menú", buttonArt.getValue("Descartar"), 276, 354, true,
+                        artWidth = MENU_BUTTON_ART_W, labelSize = 22, onTap = ::goToMenu
                     )
                 }
             }
         }
 
         fadeToDeath = {
-            val black = fadeLayer.solidRect(960, 540, Colors.BLACK) { alpha = 0.0 }
+            val screen = views.actualVirtualBounds
+            val black = fadeLayer.solidRect(screen.width, screen.height, Colors.BLACK) {
+                position(screen.x, screen.y)
+                alpha = 0.0
+            }
             black.onClick { }
             val motto = fadeLayer.pixelText(DEATH_MOTTOS.random(), 33) {
                 position((960 - width.toInt()) / 2, (540 - height.toInt()) / 2)
@@ -424,7 +536,7 @@ private fun pixelFontOf(size: Int): BitmapFont = pixelFonts.getOrPut(size) {
     }
 }
 
-private fun Container.pixelText(
+internal fun Container.pixelText(
     label: String, size: Int = 16, color: RGBA = Colors.WHITE, block: Text.() -> Unit = {}
 ): Text = text(label, size, color, pixelFontOf(size)) {
     smoothing = false
