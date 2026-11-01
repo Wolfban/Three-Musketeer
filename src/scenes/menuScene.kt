@@ -66,7 +66,7 @@ class MenuScene : Scene() {
                     smoothing = false
                     scaleY = LOADING_CARD_SCALE
                 }
-                loader.pixelText("Cargando", 22) { position(-width / 2, 74.0) }
+                loader.pixelText("Revolviendo cartas", 22) { position(-width / 2, 74.0) }
                 var elapsed = 0.0
                 card.addUpdater { dt ->
                     elapsed += dt.inWholeMilliseconds / 1000.0
